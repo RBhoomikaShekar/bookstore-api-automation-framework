@@ -1,0 +1,90 @@
+@host = http://localhost:5000
+
+### SETUP A: admin login (send first)
+# @name adminLogin
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{ "username": "admin", "password": "Admin#12345" }
+
+### SETUP B: register a normal user (201 first time, 409 on reruns, both are fine)
+POST {{host}}/auth/register
+Content-Type: application/json
+
+{ "username": "normaluser", "password": "Passw0rd!" }
+
+### SETUP C: login as the normal user
+# @name userLogin
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{ "username": "normaluser", "password": "Passw0rd!" }
+
+### ROW 1. Expect 401: POST /books with no token
+POST {{host}}/books
+Content-Type: application/json
+
+{ "title": "No Token", "author": "Nobody", "isbn": "978-1000000001", "price": 10 }
+
+### ROW 2a. Setup for the 403 and 204 rows: create a temp book as admin. Expect 201
+# @name tempBook
+POST {{host}}/books
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{ "title": "Temp Book", "author": "Temp Author", "isbn": "978-3333333333", "price": 12.5 }
+
+### ROW 2b. Expect 403: DELETE as a normal user
+DELETE {{host}}/books/{{tempBook.response.body.$.id}}
+Authorization: Bearer {{userLogin.response.body.$.accessToken}}
+
+### ROW 3. Expect 400: price = 0
+POST {{host}}/books
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{ "title": "Free Book", "author": "Someone", "isbn": "978-1000000003", "price": 0 }
+
+### ROW 4. Expect 400: missing title
+POST {{host}}/books
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{ "author": "Someone", "isbn": "978-1000000004", "price": 10 }
+
+### ROW 5. Expect 409: duplicate ISBN (reuses the Clean Code book from earlier)
+POST {{host}}/books
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{ "title": "Clean Code Copy", "author": "Someone", "isbn": "978-0132350884", "price": 20 }
+
+### ROW 6. Expect 404: book that doesn't exist
+GET {{host}}/books/999999
+
+### ROW 7. Expect 204: DELETE the temp book as admin
+DELETE {{host}}/books/{{tempBook.response.body.$.id}}
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+
+### ROW 8. Expect 401: login with a wrong password
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{ "username": "admin", "password": "definitely-wrong" }
+
+### BONUS 1. Expect 400: wrong data type for price
+POST {{host}}/books
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{ "title": "Bad Type", "author": "Someone", "isbn": "978-1000000009", "price": "abc" }
+
+### BONUS 2. Expect 400: invalid paging
+GET {{host}}/books?page=0&pageSize=500
+
+### BONUS 3. Expect 200: paging, search and sorting work
+GET {{host}}/books?page=1&pageSize=5&search=clean&sortBy=price&desc=true
+
+### BONUS 4. Expect 404: DELETE the same book again (it's gone now)
+DELETE {{host}}/books/{{tempBook.response.body.$.id}}
+Authorization: Bearer {{adminLogin.response.body.$.accessToken}}
