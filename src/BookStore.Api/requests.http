@@ -5,20 +5,20 @@
 POST {{host}}/auth/login
 Content-Type: application/json
 
-{ "username": "admin", "password": "Admin#12345" }
+{ "username": "admin", "password": "" }
 
 ### SETUP B: register a normal user (201 first time, 409 on reruns, both are fine)
 POST {{host}}/auth/register
 Content-Type: application/json
 
-{ "username": "normaluser", "password": "Passw0rd!" }
+{ "username": "normaluser", "password": "" }
 
 ### SETUP C: login as the normal user
 # @name userLogin
 POST {{host}}/auth/login
 Content-Type: application/json
 
-{ "username": "normaluser", "password": "Passw0rd!" }
+{ "username": "normaluser", "password": "" }
 
 ### ROW 1. Expect 401: POST /books with no token
 POST {{host}}/books
